@@ -4,3 +4,6 @@
 3. Activate Paystation Payment Gateway
 4. Change the Merchant ID & Password, also select Charge at Woocommerce > Payment > Paystation Payment Gateway > Setup.
 5. Thats it.
+
+Note : If you get the error "No payment method provided" in check out page the follw the video
+Link : https://www.youtube.com/watch?v=nS2yGvtz6_Y
