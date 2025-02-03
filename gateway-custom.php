@@ -270,7 +270,7 @@ function add_thank_you_message($order_id)
 	} elseif ($payment_status == 'Canceled' || $payment_status == 'Failed') {              
 		$order->update_status('cancelled');
 	} elseif ($payment_status == 'Pending payment') {          
-		$order->update_status('processing');
+		$order->update_status('pending');
 	} else{
 		$order->update_status('pending');
 	}
