@@ -1,18 +1,18 @@
 <?php
 
 /**
- * Plugin Name: Paystation Payment Gateway
+ * Plugin Name: PayStation Payment Gateway
  * Plugin URI: https://www.paystation.com.bd
  * Description: Paystation payment gateway use properly. If you're first time user then you should read Getting Started section first.
- * Version: 1.0.0
- * Author: Md. Anisur Rahaman
- * Author URI: https://anascloud.blogspot.com
+ * Version: 1.1.0
+ * Author: PayStation
+ * Author URI: https://www.paystation.com.bd
  * Tested up to: 4.6.1
- * Text Domain: anascloud
+ * Text Domain: https://www.paystation.com.bd
  * Domain Path: /languages/
  *
  * @package Custom Gateway for WooCommerce
- * @author Md. Anisur Rahaman
+ * @author PayStation
  */
 
 
@@ -26,19 +26,17 @@ if (!in_array('woocommerce/woocommerce.php', $active_plugins)) {
 	return;
 }
 
-// Add custom place order button
-// function add_button_after_place_order()
-// {
-// 	echo '<button type="button" class="button alt wp-element-button" id="track-order-button" style="display:none;">Place order</button>';
-// }
-// add_action('woocommerce_review_order_after_submit', 'add_button_after_place_order');
+add_action('wp_head', 'hide_default_checkout_button');
+function hide_default_checkout_button() {
+    if (is_checkout()) {
+        echo '<style>#place_order { display: none !important; }</style>';
+    }
+}
 
-// Remove default Place order button
-add_filter('woocommerce_order_button_html', 'remove_order_button_html');
-function remove_order_button_html($button)
-{
-	$button = '<button type="button" class="button alt wp-element-button" id="track-order-button">Place order</button>';
-	return $button;
+add_action('woocommerce_order_button_html', 'add_custom_checkout_button');
+function add_custom_checkout_button() {
+    // Ensure the button is only added if the default one is hidden
+    echo '<button type="button" class="button alt wp-element-button" id="track-order-button">Place Order</button>';
 }
 
 // plugin directory
@@ -64,11 +62,42 @@ function paystation_payment_gateway_init()
 	include_once('paystation_payment_gateway.php');
 }
 
+// add_action('wp_enqueue_scripts', 'my_plugin_enqueue_scripts');
+// function my_plugin_enqueue_scripts()
+// {
+// 	wp_enqueue_script('paystation', plugin_dir_url(__FILE__) . 'assets/custom.js', array('jquery'), '1.0.0', true);
+// 	wp_enqueue_style('paystation', plugins_url('assets/custom.css', __FILE__), false, '1.0.0', 'all');
+// }
+
 add_action('wp_enqueue_scripts', 'my_plugin_enqueue_scripts');
 function my_plugin_enqueue_scripts()
 {
-	wp_enqueue_script('paystation', plugin_dir_url(__FILE__) . 'assets/custom.js', array('jquery'), '1.0.0', true);
-	wp_enqueue_style('paystation', plugins_url('assets/custom.css', __FILE__), false, '1.0.0', 'all');
+    // Enqueue SweetAlert2 CDN
+    wp_enqueue_script(
+        'sweetalert2',
+        'https://cdn.jsdelivr.net/npm/sweetalert2@11',
+        array(), // No dependencies needed
+        null, // No version needed, as it's a CDN
+        true // Load in the footer
+    );
+
+    // Enqueue custom JavaScript file (custom.js)
+    wp_enqueue_script(
+        'paystation',
+        plugin_dir_url(__FILE__) . 'assets/custom.js',
+        array('jquery', 'wp-element', 'wp-i18n', 'wp-api-fetch', 'sweetalert2'), // Add SweetAlert2 as a dependency
+        '1.0.0',
+        true
+    );
+
+    // Enqueue custom CSS file
+    wp_enqueue_style(
+        'paystation',
+        plugins_url('assets/custom.css', __FILE__),
+        array(),
+        '1.0.0',
+        'all'
+    );
 }
 
 add_action('woocommerce_after_order_notes', 'my_custom_content');
@@ -274,16 +303,6 @@ function add_thank_you_message($order_id)
 	} else{
 		$order->update_status('pending');
 	}
-
-	// $payment_status = $_GET['status'] ?? 'Pending payment';
-	// $order = wc_get_order($order_id);
-	// if ($payment_status == 'Successful') {
-	// 	$order->update_status('completed');
-	// } elseif ($payment_status === 'Canceled') {            
-	// 	$order->update_status('cancelled');
-	// } else {
-	// 	$order->update_status('pending');
-	// }
 }
 
 add_action('woocommerce_thankyou', 'display_payment_status', 10);
