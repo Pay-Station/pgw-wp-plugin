@@ -16,7 +16,7 @@ if (isset($_POST["access"])) {
 	$password = $data["password"];
 
 	$post_feild = array(
-		'invoice_number' => 'WP000'.$merchantId.$invoice_number,
+		'invoice_number' => 'WP'.$merchantId.'-'.$invoice_number,
 		'currency' => "BDT",
 		'payment_amount' => $cartTotal,
 		'cust_name' => $cust_name,
