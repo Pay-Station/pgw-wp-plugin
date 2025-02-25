@@ -1,167 +1,104 @@
 jQuery(document).ready(function ($) {
-
   $(document.body).on("click", "button#track-order-button", function () {
-    $("button#track-order-button").attr("disabled", true);
-    const cartTotal = document.getElementById("cartTotal").value;
+    let button = $("button#track-order-button");
+    button.attr("disabled", true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
 
-    let errorElement = "";
+    const cartTotal = document.getElementById("cartTotal").value;
     const payment_method = $('input[name="payment_method"]:checked').val();
     const baseurl = document.getElementById("baseurl").value;
     const payment_url = document.getElementById("payment_url").value;
 
     const billing_first_name = document.getElementById("billing_first_name")?.value || 'N/A';
     const billing_last_name = document.getElementById("billing_last_name")?.value || 'N/A';
-    const billing_company = document.getElementById("billing_company")?.value || 'N/A';
-    const billing_email = document.getElementById("billing_email").value;
-    const billing_phone = document.getElementById("billing_phone").value;
+    const billing_email = document.getElementById("billing_email").value || 'N/A';
+    const billing_phone = document.getElementById("billing_phone").value || 'N/A';
     const billing_address_1 = document.getElementById("billing_address_1")?.value || 'N/A';
-    const billing_address_2 = document.getElementById("billing_address_2")?.value || 'N/A';
     const billing_city = document.getElementById("billing_city")?.value || 'N/A';
     const billing_state = document.getElementById("billing_state")?.value || 'N/A';
-    const billing_postcode = document.getElementById("billing_postcode")?.value || 'N/A';
     const billing_country = document.getElementById("billing_country")?.value || 'N/A';
 
-    // Shipping address fields
-    const shipping_first_name = document.getElementById("shipping_first_name")?.value || 'N/A';
-    const shipping_last_name = document.getElementById("shipping_last_name")?.value || 'N/A';
-    const shipping_company = document.getElementById("shipping_company")?.value || 'N/A';
-    const shipping_address_1 = document.getElementById("shipping_address_1")?.value || 'N/A';
-    const shipping_address_2 = document.getElementById("shipping_address_2")?.value || 'N/A';
-    const shipping_city = document.getElementById("shipping_city")?.value || 'N/A';
-    const shipping_state = document.getElementById("shipping_state")?.value || 'N/A';
-    const shipping_postcode = document.getElementById("shipping_postcode")?.value || 'N/A';
-    const shipping_country = document.getElementById("shipping_country")?.value || 'N/A';
+    // Check required fields
+    if (billing_first_name === "N/A" || billing_last_name === "N/A" || billing_email === "" || billing_phone === "" || billing_address_1 === "N/A" || billing_city === "N/A" || billing_country === "N/A" || billing_state === "N/A") {
+      Swal.fire({
+        icon: 'error',
+        title: 'Missing Information',
+        text: 'Please fill up required information!',
+      });
+      button.attr("disabled", false).html("Place Order");
+      return;
+    }
+
+    if (cartTotal <= 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Invalid Order Amount',
+        text: 'Order amount must be greater than 0!',
+      });
+      button.attr("disabled", false).html("Place Order");
+      return;
+    }
 
     const url = baseurl + "/wp-admin/admin-ajax.php";
-    const ps_merchant_id = document.getElementById("ps_merchant_id").value;
-    const ps_password = document.getElementById("ps_password").value;
-    const billingChargeValue = document.getElementById("charge_for_customer").value;
+    const demo = $(".checkout").serializeArray();
 
-    if (billing_first_name === "N/A" || billing_last_name === "N/A" || billing_email === "" || billing_phone === "" || billing_address_1 === "N/A" || billing_city === "N/A" || billing_country === "N/A" || billing_state === "N/A") {
-      const message = "Please fill up required information";
-      errorElement =
-        "<br /><span style='color: #a94442;background-color: #f2dede;border-color: #ebccd1;padding: 15px;border: 1px solid transparent;border-radius: 4px;'>" +
-        message +
-        "</span>";
-      $("#payment").append(errorElement);
-      // Hide the error message after 2 seconds
-      setTimeout(function () {
-        $("#payment span").fadeOut(500, function () {
-          $(this).remove();
-        });
-      }, 2000);
-      $("button#track-order-button").attr("disabled", false);
-    } else if (cartTotal > 0) {
-
-
-      // $.post(url, { action: "get_cart_items" }, function (response) {
-      //   if (response.length) {
-      //     apiCall(response);
-      //   }
-      // });
-
-      const demo = $(".checkout").serializeArray();
-
-      $.post(url, { action: "complete_order", data: demo }, function (response) {
-        if (response.order_id > 0 && payment_method === 'paystation_payment_gateway' && response.returnURL) {
+    $.post(url, { action: "complete_order", data: demo }, function (response) {
+      if (response.order_id > 0) {
+        if (payment_method === 'paystation_payment_gateway' && response.returnURL) {
           makePayment(response.order_id, response.returnURL);
-        } else if (response.order_id > 0 && payment_method === 'cod') {
-          window.open(response.returnURL, "_self");
-        } else if (response.order_id > 0 && payment_method === 'bacs') {
-          window.open(response.returnURL, "_self");
-        } else if (response.order_id > 0 && payment_method === 'cheque') {
-          window.open(response.returnURL, "_self");
         } else {
           window.open(response.returnURL, "_self");
         }
-      });
-      function makePayment(order_id, returnURL) {
-        const obj = {
-          merchantId: ps_merchant_id,
-          password: ps_password,
-        };
-        const body = {
-          access: obj,
-          cartTotal: cartTotal,
-          billing_first_name: billing_first_name,
-          billing_last_name: billing_last_name,
-          billing_company: billing_company,
-          billing_email: billing_email,
-          billing_phone: billing_phone,
-          billing_address_1: billing_address_1,
-          billing_address_2: billing_address_2,
-          billing_city: billing_city,
-          billing_state: billing_state,
-          billing_postcode: billing_postcode,
-          billing_country: billing_country,
-          charge_for_customer: billingChargeValue,
-          shipping_first_name: shipping_first_name,
-          shipping_last_name: shipping_last_name,
-          shipping_company: shipping_company,
-          shipping_address_1: shipping_address_1,
-          shipping_address_2: shipping_address_2,
-          shipping_city: shipping_city,
-          shipping_state: shipping_state,
-          shipping_postcode: shipping_postcode,
-          shipping_country: shipping_country,
-          invoice_number: order_id,
-          baseurl: baseurl,
-          returnURL: returnURL,
-        };
-        if (cartTotal > 0) {
-          $.ajax({
-            url: payment_url,
-            data: body,
-            method: "POST",
-            dataType: "json",
-            success: function (data) {
-              if (data.status === "success") {
-                window.open(data.payment_url, "_self");
-              } else {
-                $("button#track-order-button").attr("disabled", true);
-                errorElement =
-                  "<br /><span style='color: #a94442;background-color: #f2dede;border-color: #ebccd1;padding: 15px;border: 1px solid transparent;border-radius: 4px;'>" +
-                  data.status +
-                  " - " +
-                  data.message +
-                  "</span>";
-                $("#payment").append(errorElement);
-              }
-            },
-          });
-        }
-      }
-    } else {
-      const message = "Order amount must be greater than 0!";
-      errorElement =
-        "<br /><span style='color: #a94442;background-color: #f2dede;border-color: #ebccd1;padding: 15px;border: 1px solid transparent;border-radius: 4px;'>" +
-        message +
-        "</span>";
-      $("#payment").append(errorElement);
-      // Hide the error message after 2 seconds
-      setTimeout(function () {
-        $("#payment span").fadeOut(500, function () {
-          $(this).remove();
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Payment Failed',
+          text: 'There was an issue processing your order. Please try again!',
         });
-      }, 2000);
-      $("button#track-order-button").attr("disabled", false);
+        button.attr("disabled", false).html("Place Order");
+      }
+    });
+
+    function makePayment(order_id, returnURL) {
+      const ps_merchant_id = document.getElementById("ps_merchant_id").value;
+      const ps_password = document.getElementById("ps_password").value;
+      const billingChargeValue = document.getElementById("charge_for_customer").value;
+
+      const body = {
+        access: { merchantId: ps_merchant_id, password: ps_password },
+        cartTotal: cartTotal,
+        billing_first_name, billing_last_name, billing_email, billing_phone,
+        billing_address_1, billing_city, billing_state, billing_country,
+        charge_for_customer: billingChargeValue,
+        invoice_number: order_id,
+        baseurl, returnURL,
+      };
+
+      $.ajax({
+        url: payment_url,
+        data: body,
+        method: "POST",
+        dataType: "json",
+        success: function (data) {
+          if (data.status === "success") {
+            window.open(data.payment_url, "_self");
+          } else {
+            Swal.fire({
+              icon: 'error',
+              title: 'Payment Error',
+              text: data.message,
+            });
+            button.attr("disabled", false).html("Place Order");
+          }
+        },
+      });
     }
   });
 
-  // $(document.body).on("change", "input[name=payment_method]", function () {
-  //   if (this.value == "paystation_payment_gateway") {
-  //     $("#place_order").hide();
-  //     $("#track-order-button").show();
-  //   } else {
-  //     $("#place_order").show();
-  //     $("#track-order-button").hide();
-  //   }
-  // });
-
+  // Handle order cancellation
   const wc_payment_status = document.getElementById("wc_payment_status")?.value;
   if (wc_payment_status && wc_payment_status === "cancelled") {
     $('h1.wp-block-woocommerce-legacy-template').text('Order Cancelled!');
-    $('.woocommerce-order-received .woocommerce-thankyou-order-received').text('Your order has been cancelled.');
+    $('.woocommerce-order-received .woocommerce-thankyou-order-received').text('Your order has been cancelled.....');
     $('.woocommerce-order-details').hide();
     $('.woocommerce-customer-details').hide();
   }
