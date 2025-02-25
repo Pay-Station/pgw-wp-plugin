@@ -10,8 +10,8 @@ jQuery(document).ready(function ($) {
 
     const billing_first_name = document.getElementById("billing_first_name")?.value || 'N/A';
     const billing_last_name = document.getElementById("billing_last_name")?.value || 'N/A';
-    const billing_email = document.getElementById("billing_email").value || 'N/A';
-    const billing_phone = document.getElementById("billing_phone").value || 'N/A';
+    const billing_email = document.getElementById("billing_email").value;
+    const billing_phone = document.getElementById("billing_phone").value;
     const billing_address_1 = document.getElementById("billing_address_1")?.value || 'N/A';
     const billing_city = document.getElementById("billing_city")?.value || 'N/A';
     const billing_state = document.getElementById("billing_state")?.value || 'N/A';
