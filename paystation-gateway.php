@@ -1,0 +1,168 @@
+<?php
+/*
+Plugin Name: PayStation Payment Gateway
+Description: Accept payments through PayStation in WooCommerce.
+Version: 1.0.0
+Author: PayStation
+Author URI: https://www.paystation.com.bd
+*/
+
+// Exit if accessed directly
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// Define plugin constants
+define('PAYSTATION_PLUGIN_DIR', plugin_dir_path(__FILE__));
+define('PAYSTATION_PLUGIN_URL', plugin_dir_url(__FILE__));
+
+defined('ABSPATH') || exit;
+
+// Include payment processor
+require_once PAYSTATION_PLUGIN_DIR . 'includes/paystation-process.php';
+
+// Register the gateway with WooCommerce
+add_filter('woocommerce_payment_gateways', 'add_paystation_gateway_class');
+function add_paystation_gateway_class($gateways)
+{
+    $gateways[] = 'WC_Gateway_Paystation';
+    return $gateways;
+}
+
+// Initialize the gateway class
+add_action('plugins_loaded', 'init_paystation_gateway_class');
+function init_paystation_gateway_class()
+{
+    class WC_Gateway_Paystation extends WC_Payment_Gateway
+    {
+        public function __construct()
+        {
+            $this->id = 'paystation_payment_gateway';
+            $this->method_title = __('Paystation Payment Gateway', 'paystation_payment_gateway');
+            // $this->method_description = __('Pay via PayStation.', 'woocommerce');
+            $this->icon = trailingslashit(WP_PLUGIN_URL) . plugin_basename(dirname(__FILE__)) . '/images/icon.png';
+            $this->has_fields = true;
+
+            $this->init_form_fields();
+            $this->init_settings();
+
+            $this->title = $this->get_option('title');
+            $this->merchant_id = $this->get_option('merchant_id');
+            $this->password = $this->get_option('password');
+            $this->charge_for_customer = $this->get_option('charge_for_customer');
+
+            $this->description 	= $this->get_option('ps_gateway_description');
+            $this->supports = array(
+                'products'
+            );
+
+            add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
+
+            // Handle callback
+            add_action('init', array($this, 'check_paystation_response'));
+        }
+
+        public function init_form_fields()
+        {
+            $this->form_fields = array(
+                // 'enabled' => array(
+                //     'title' => __('Enable/Disable', 'paystation_payment_gateway'),
+                //     'type' => 'checkbox',
+                //     'label' => __('Enable PayStation Payment', 'paystation_payment_gateway'),
+                //     'default' => 'no'
+                // ),
+                'title' => array(
+                    'title' => __('Title', 'paystation_payment_gateway'),
+                    'type' => 'text',
+                    'description' => __('This controls the title the user sees during checkout.'),
+                    'default' => __('PayStation', 'paystation_payment_gateway'),
+                    'desc_tip' => true
+                ),
+                'ps_gateway_description' => array(
+                    'title'       => __('Description', 'paystation_payment_gateway'),
+                    'type'        => 'textarea',
+                    'description' => __( 'This will be shown as the payment method description on the checkout page.', 'paystation_payment_gateway'),
+                    'default'     => __('Pay securely by Credit/Debit card, Internet banking or Mobile banking through PayStation.', 'paystation_payment_gateway')
+                ),
+                'merchant_id' => array(
+                    'title' => __('Merchant ID', 'paystation_payment_gateway'),
+                    'type' => 'text',
+                    'description' => __('Your PayStation Merchant ID'),
+                    'default' => ''
+                ),
+                'password' => array(
+                    'title' => __('Password', 'paystation_payment_gateway'),
+                    'type' => 'password',
+                    'description' => __('Your PayStation API Password'),
+                    'default' => ''
+                ),
+                'charge_for_customer' => array(
+                    'title'     => __('Charge', 'paystation_payment_gateway'),
+                    'type'      => 'select',
+                    'desc_tip'  => __('Select payment option.', 'charge_for_customer'),
+                    'options'   => array(
+                        '1' => __('Pay With Charge', 'paystation_payment_gateway'),
+                        '0' => __('Pay Without Charge', 'paystation_payment_gateway'),
+                    ),
+                    'default'   => '1',
+                )
+            );
+        }
+
+        public function process_payment($order_id)
+        {
+            $order = wc_get_order($order_id);
+
+            $callback_url = home_url('/?wc-api=wc_gateway_paystation');
+            $invoice_number = 'WP' . $this->merchant_id . '-' . $order_id;
+            $amount = $order->get_total();
+            $billing = $order->get_address('billing');
+
+            $body = array(
+                'invoice_number' => $invoice_number,
+                'currency' => 'BDT',
+                'payment_amount' => $amount,
+                'cust_name' => $billing['first_name'],
+                'cust_phone' => $billing['phone'],
+                'cust_email' => $billing['email'],
+                'cust_address' => $billing['address_1'],
+                'reference' => 'WP-WooCommerce',
+                'callback_url' => $callback_url,
+                'checkout_items' => 'items',
+                'pay_with_charge' => $this->charge_for_customer,
+                'merchantId' => $this->merchant_id,
+                'password' => $this->password
+            );
+
+            $response = wp_remote_post('https://api.paystation.com.bd/initiate-payment', array(
+                'method' => 'POST',
+                'body' => $body,
+                'timeout' => 60,
+            ));
+
+            if (is_wp_error($response)) {
+                wc_add_notice(__('Payment error:', 'woocommerce') . $response->get_error_message(), 'error');
+                return;
+            }
+
+            $result = json_decode(wp_remote_retrieve_body($response), true);
+            if ($result['status'] === 'success') {
+                return array(
+                    'result' => 'success',
+                    'redirect' => $result['payment_url']
+                );
+            } else {
+                wc_add_notice(__('Payment failed:', 'woocommerce') . $result['message'], 'error');
+                return;
+            }
+        }
+
+        public function check_paystation_response()
+        {
+            if (isset($_GET['wc-api']) && $_GET['wc-api'] === 'wc_gateway_paystation') {
+                require_once PAYSTATION_PLUGIN_DIR . 'includes/paystation-process.php';
+                exit;
+            }
+        }
+    }
+}
