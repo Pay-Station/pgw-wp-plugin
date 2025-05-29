@@ -50,6 +50,8 @@ function init_paystation_gateway_class()
             $this->merchant_id = $this->get_option('merchant_id');
             $this->password = $this->get_option('password');
             $this->charge_for_customer = $this->get_option('charge_for_customer');
+            $this->emi = $this->get_option('emi');
+            $this->fail_url = $this->get_option('fail_url');
 
             $this->description 	= $this->get_option('ps_gateway_description');
             $this->supports = array(
@@ -60,6 +62,9 @@ function init_paystation_gateway_class()
 
             // Handle callback
             add_action('init', array($this, 'check_paystation_response'));
+
+            // Store fail_url in WordPress options
+            update_option('paystation_fail_url', $this->fail_url);
         }
 
         public function init_form_fields()
@@ -105,7 +110,23 @@ function init_paystation_gateway_class()
                         '0' => __('Pay Without Charge', 'paystation_payment_gateway'),
                     ),
                     'default'   => '1',
-                )
+                ),
+                'emi' => array(
+                    'title'     => __('EMI', 'paystation_payment_gateway'),
+                    'type'      => 'select',
+                    'desc_tip'  => __('Select option.', 'emi'),
+                    'options'   => array(
+                        '1' => __('Yes', 'paystation_payment_gateway'),
+                        '0' => __('No', 'paystation_payment_gateway'),
+                    ),
+                    'default'   => '0',
+                ),
+                'fail_url' => array(
+                    'title' => __('Fail/Cancel URL', 'paystation_payment_gateway'),
+                    'type' => 'text',
+                    'description' => __('Fail/Cancel URL'),
+                    'default' => ''
+                ),
             );
         }
 
@@ -117,6 +138,11 @@ function init_paystation_gateway_class()
             $invoice_number = 'WP' . $this->merchant_id . '-' . $order_id;
             $amount = $order->get_total();
             $billing = $order->get_address('billing');
+
+            if ($this->emi == 1 && $amount < 5000) {
+                wc_add_notice(__('Minimum amount should be 5000 Tk for EMI.', 'woocommerce') . " Please choose a higher amount for EMI.", 'error');
+                return;
+            }
 
             $body = array(
                 'invoice_number' => $invoice_number,
@@ -130,6 +156,7 @@ function init_paystation_gateway_class()
                 'callback_url' => $callback_url,
                 'checkout_items' => 'items',
                 'pay_with_charge' => $this->charge_for_customer,
+                'emi' => $this->emi,
                 'merchantId' => $this->merchant_id,
                 'password' => $this->password
             );

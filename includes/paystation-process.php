@@ -32,16 +32,34 @@ function paystation_payment_response_handler() {
         $order->payment_complete($trx_id);
         $order->update_status('completed');
         $order->add_order_note("Payment completed via PayStation. Transaction ID: {$trx_id}");
-    } else if($status === 'Canceled'){
+
+        // Redirect to thank you page with status query
+        $redirect_url = $order->get_checkout_order_received_url() . '&status=' . $status;
+    } else if($status === 'canceled'){
         $order->update_status('cancelled', 'PayStation payment failed or cancelled.');
         WC()->cart->empty_cart();
+
+        // Retrieve fail_url from WordPress options
+        $redirect_url = get_option('paystation_fail_url', '');
+        
+        if (empty($redirect_url)) {
+            echo "Fail URL is not set.";
+        }
+
+
     }else {
         $order->update_status('failed', 'PayStation payment failed or cancelled.');
         WC()->cart->empty_cart();
+
+        // Retrieve fail_url from WordPress options
+        $redirect_url = get_option('paystation_fail_url', '');
+
+        if (empty($redirect_url)) {
+            echo "Fail URL is not set.";
+        }
+
     }
 
-    // Redirect to thank you page with status query
-    $redirect_url = $order->get_checkout_order_received_url() . '&status=' . $status;
     wp_redirect($redirect_url);
     exit;
 }
