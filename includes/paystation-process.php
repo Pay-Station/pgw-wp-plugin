@@ -28,38 +28,89 @@ function paystation_payment_response_handler() {
 
     $status = strtolower($status);
 
-    if ($status === 'successful') {
-        $order->payment_complete($trx_id);
-        $order->update_status('completed');
-        $order->add_order_note("Payment completed via PayStation. Transaction ID: {$trx_id}");
 
-        // Redirect to thank you page with status query
-        $redirect_url = $order->get_checkout_order_received_url() . '&status=' . $status;
-    } else if($status === 'canceled'){
-        $order->update_status('cancelled', 'PayStation payment failed or cancelled.');
-        WC()->cart->empty_cart();
+    // Check Transaction Status
+    $body = array(
+        'invoice_number' => $invoice_number
+    );
 
-        // Retrieve fail_url from WordPress options
-        $redirect_url = get_option('paystation_fail_url', '');
-        
-        if (empty($redirect_url)) {
-            echo "Fail URL is not set.";
+    $header = array(
+        'merchantId' => get_option('merchant_id')
+    );
+
+    $response = wp_remote_post('https://api.paystation.com.bd/transaction-status', array(
+        'method' => 'POST',
+        'body' => $body,
+        'headers' => $header,
+        'timeout' => 60,
+    ));
+
+    // if (is_wp_error($response)) {
+    //     wc_add_notice(__('Payment error:', 'woocommerce') . $response->get_error_message(), 'error');
+    //     return;
+    // }
+
+    $result = json_decode(wp_remote_retrieve_body($response), true);
+
+    if (isset($result['status_code']) && $result['status_code'] === '200') {
+        if (isset($result['data']) && $result['data']['trx_status'] === 'successful') {
+            $order->payment_complete($trx_id);
+            $order->update_status('completed');
+            $order->add_order_note("Payment completed via PayStation. Transaction ID: {$trx_id}");
+
+            // Redirect to thank you page with status query
+            $redirect_url = $order->get_checkout_order_received_url() . '&status=' . $result['data']['trx_status'];
+        } else {
+
+            if($status === 'canceled'){
+                $order->update_status('cancelled', 'PayStation payment failed or cancelled.');
+                WC()->cart->empty_cart();
+
+                // Retrieve fail_url from WordPress options
+                $redirect_url = get_option('paystation_fail_url', '');
+                
+                if (empty($redirect_url)) {
+                    echo "Fail URL is not set.";
+                }
+            }else {
+                $order->update_status('failed', 'PayStation payment failed or cancelled.');
+                WC()->cart->empty_cart();
+
+                // Retrieve fail_url from WordPress options
+                $redirect_url = get_option('paystation_fail_url', '');
+
+                if (empty($redirect_url)) {
+                    echo "Fail URL is not set.";
+                }
+            }
+
         }
+    } else {
+    
+        if($status === 'canceled'){
+            $order->update_status('cancelled', 'PayStation payment failed or cancelled.');
+            WC()->cart->empty_cart();
 
+            // Retrieve fail_url from WordPress options
+            $redirect_url = get_option('paystation_fail_url', '');
+            
+            if (empty($redirect_url)) {
+                echo "Fail URL is not set.";
+            }
+        }else {
+            $order->update_status('failed', 'PayStation payment failed or cancelled.');
+            WC()->cart->empty_cart();
 
-    }else {
-        $order->update_status('failed', 'PayStation payment failed or cancelled.');
-        WC()->cart->empty_cart();
+            // Retrieve fail_url from WordPress options
+            $redirect_url = get_option('paystation_fail_url', '');
 
-        // Retrieve fail_url from WordPress options
-        $redirect_url = get_option('paystation_fail_url', '');
-
-        if (empty($redirect_url)) {
-            echo "Fail URL is not set.";
+            if (empty($redirect_url)) {
+                echo "Fail URL is not set.";
+            }
         }
 
     }
-
+    
     wp_redirect($redirect_url);
     exit;
 }

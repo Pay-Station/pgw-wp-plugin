@@ -65,6 +65,9 @@ function init_paystation_gateway_class()
 
             // Store fail_url in WordPress options
             update_option('paystation_fail_url', $this->fail_url);
+
+            // Store merchantId in WordPress options
+            update_option('merchant_id', $this->merchant_id);
         }
 
         public function init_form_fields()
