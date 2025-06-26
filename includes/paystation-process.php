@@ -59,7 +59,7 @@ function paystation_payment_response_handler() {
             $order->add_order_note("Payment completed via PayStation. Transaction ID: {$trx_id}");
 
             // Redirect to thank you page with status query
-            $redirect_url = $order->get_checkout_order_received_url() . '&status=' . $$result['data']['trx_status'];
+            $redirect_url = $order->get_checkout_order_received_url() . '&status=' . $result['data']['trx_status'];
         } else {
 
             if($status === 'canceled'){
