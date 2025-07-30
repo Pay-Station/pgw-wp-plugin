@@ -73,12 +73,6 @@ function init_paystation_gateway_class()
         public function init_form_fields()
         {
             $this->form_fields = array(
-                // 'enabled' => array(
-                //     'title' => __('Enable/Disable', 'paystation_payment_gateway'),
-                //     'type' => 'checkbox',
-                //     'label' => __('Enable PayStation Payment', 'paystation_payment_gateway'),
-                //     'default' => 'no'
-                // ),
                 'title' => array(
                     'title' => __('Title', 'paystation_payment_gateway'),
                     'type' => 'text',
@@ -138,7 +132,10 @@ function init_paystation_gateway_class()
             $order = wc_get_order($order_id);
 
             $callback_url = home_url('/?wc-api=wc_gateway_paystation');
-            $invoice_number = 'WP' . $this->merchant_id . '-' . $order_id;
+
+            $current_datetime = date('YmdHis');
+            $invoice_number = 'WP' . $current_datetime . '-' . $order_id;
+
             $amount = $order->get_total();
             $billing = $order->get_address('billing');
 
