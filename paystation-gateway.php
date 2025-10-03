@@ -21,6 +21,19 @@ defined('ABSPATH') || exit;
 // Include payment processor
 require_once PAYSTATION_PLUGIN_DIR . 'includes/paystation-process.php';
 
+// Show admin notice if WooCommerce is not active
+add_action('admin_notices', function() {
+    if (
+        current_user_can('activate_plugins') &&
+        !class_exists('WooCommerce') &&
+        is_plugin_active(plugin_basename(__FILE__))
+    ) {
+        echo '<div class="notice notice-error"><p>';
+        echo esc_html__('PayStation Payment Gateway cannot be activated because WooCommerce is missing or inactive.', 'paystation_payment_gateway');
+        echo '</p></div>';
+    }
+});
+
 // Register the gateway with WooCommerce
 add_filter('woocommerce_payment_gateways', 'add_paystation_gateway_class');
 function add_paystation_gateway_class($gateways)
