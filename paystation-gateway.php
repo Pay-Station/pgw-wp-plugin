@@ -29,10 +29,21 @@ function add_paystation_gateway_class($gateways)
     return $gateways;
 }
 
-// Initialize the gateway class
-add_action('plugins_loaded', 'init_paystation_gateway_class');
+// Show a custom notice on the checkout page if WooCommerce is not active
+add_action('woocommerce_before_checkout_form', function() {
+    if (!class_exists('WC_Payment_Gateway')) {
+        wc_print_notice(__('PayStation Payment Gateway requires WooCommerce to be active. Please contact the site administrator.', 'paystation_payment_gateway'), 'error');
+    }
+});
+
+// Initialize the gateway class after WooCommerce is loaded
+add_action('plugins_loaded', 'init_paystation_gateway_class', 11);
 function init_paystation_gateway_class()
 {
+    if (!class_exists('WC_Payment_Gateway')) {
+        return;
+    }
+
     class WC_Gateway_Paystation extends WC_Payment_Gateway
     {
         public function __construct()
