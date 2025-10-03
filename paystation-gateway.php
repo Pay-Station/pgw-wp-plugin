@@ -21,17 +21,39 @@ defined('ABSPATH') || exit;
 // Include payment processor
 require_once PAYSTATION_PLUGIN_DIR . 'includes/paystation-process.php';
 
-// Show admin notice if WooCommerce is not active
+// Ensure is_plugin_active is available
+if (!function_exists('is_plugin_active')) {
+    require_once ABSPATH . 'wp-admin/includes/plugin.php';
+}
+
+// Admin notice if WooCommerce is not active (backend)
 add_action('admin_notices', function() {
     if (
         current_user_can('activate_plugins') &&
-        !class_exists('WooCommerce') &&
-        is_plugin_active(plugin_basename(__FILE__))
+        !class_exists('WooCommerce')
     ) {
         echo '<div class="notice notice-error"><p>';
         echo esc_html__('PayStation Payment Gateway cannot be activated because WooCommerce is missing or inactive.', 'paystation_payment_gateway');
         echo '</p></div>';
     }
+});
+
+// Show a custom notice on the checkout page if WooCommerce is not active (frontend)
+add_action('woocommerce_before_checkout_form', function() {
+    if (!class_exists('WC_Payment_Gateway')) {
+        wc_print_notice(__('PayStation Payment Gateway requires WooCommerce to be active. Please contact the site administrator.', 'paystation_payment_gateway'), 'error');
+    }
+});
+
+// Show a custom notice if [woocommerce_checkout] is used but WooCommerce is not active
+add_shortcode('woocommerce_checkout', function($atts = [], $content = null) {
+    if (!class_exists('WooCommerce')) {
+        return '<div style="padding:20px;background:#ffeaea;border:1px solid #e00;color:#a00;font-weight:bold;">'
+            . esc_html__('PayStation Payment Gateway requires WooCommerce to be active. Please contact the site administrator.', 'paystation_payment_gateway')
+            . '</div>';
+    }
+    // If WooCommerce is active, run the original shortcode handler
+    return function_exists('woocommerce_checkout') ? woocommerce_checkout($atts) : '';
 });
 
 // Register the gateway with WooCommerce
@@ -41,13 +63,6 @@ function add_paystation_gateway_class($gateways)
     $gateways[] = 'WC_Gateway_Paystation';
     return $gateways;
 }
-
-// Show a custom notice on the checkout page if WooCommerce is not active
-add_action('woocommerce_before_checkout_form', function() {
-    if (!class_exists('WC_Payment_Gateway')) {
-        wc_print_notice(__('PayStation Payment Gateway requires WooCommerce to be active. Please contact the site administrator.', 'paystation_payment_gateway'), 'error');
-    }
-});
 
 // Initialize the gateway class after WooCommerce is loaded
 add_action('plugins_loaded', 'init_paystation_gateway_class', 11);
